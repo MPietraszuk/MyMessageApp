@@ -1,73 +1,54 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, Input, ViewChild } from '@angular/core';
 import { NgForm } from '@angular/forms';
-
-import { PostsService } from '../posts.service';
-import { ActivatedRoute, ParamMap } from '@angular/router';
 import { Post } from '../post.model';
+import { PostsService } from '../posts.service';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-post-create',
   templateUrl: './post-create.component.html',
   styleUrls: ['./post-create.component.css'],
 })
-export class PostCreateComponent implements OnInit {
-  enteredContent = '';
-  enteredTitle = '';
-  post: Post;
-  isLoading = false;
-  private mode = 'create';
-  private postId: string;
+export class PostCreateComponent {
 
-  constructor(
-    public postsService: PostsService,
-    public route: ActivatedRoute
-  ) {}
+  private editsub: Subscription;
+  private editId: string | null;
+  constructor(public postsService: PostsService) { }
+  @ViewChild('postForm') postForm;
+
   ngOnInit() {
-    this.route.paramMap.subscribe((paramMap: ParamMap) => {
-      if (paramMap.has('postId')) {
-        this.mode = 'edit';
-        this.postId = paramMap.get('postId');
-        this.isLoading = true;
-        this.postsService.getPost(this.postId).subscribe((postData) => {
-          this.isLoading = true;
-          this.post = {
-            id: postData._id,
-            title: postData.title,
-            content: postData.content,
-          };
-          console.log(
-            '>>>> postId ' +
-              this.postId +
-              ' >>>> postData._id ' +
-              postData._id +
-              ' >>>> postData.title ' +
-              postData.title +
-              ' >>>> postData.content ' +
-              postData.content
-          );
-          console.log(' ' + '>>>> post ' + this.post);
-        });
-      } else {
-        this.mode = 'create';
-        this.postId = null;
-      }
+    // Subscribes to the post service and then patches the values of the subscription
+    this.editsub = this.postsService.getEditPostListiner().subscribe((post: Post) => {
+      this.postForm.form.patchValue({content: post.content});
+      this.postForm.form.patchValue({title: post.title});
+
+      this.editId = post.id;
     });
+
   }
 
-  onSavePost(form: NgForm) {
+  onAddPost(form: NgForm) {
     if (form.invalid) {
       return;
     }
-    this.isLoading = true;
-    if (this.mode === 'create') {
-      this.postsService.addPost(form.value.title, form.value.content);
-    } else {
-      this.postsService.updatePost(
-        this.postId,
-        form.value.title,
-        form.value.content
-      );
+
+    try {
+      if(this.editId){
+        console.log("put");
+        this.postsService.putPost(form.value.title, form.value.content, this.editId);
+        this.editId = null;
+      }else{
+        this.postsService.addPost(form.value.title, form.value.content);
+      }
+    } catch (error) {
+      console.log("Add/Update Error", error);
     }
+
     form.resetForm();
   }
+
+  ngOnDestroy() {
+    this.editsub.unsubscribe();
+  }
+
 }

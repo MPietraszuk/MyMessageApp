@@ -1,5 +1,5 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
-import { Subscription } from 'rxjs';
+import { Component, OnInit, OnDestroy, Output, EventEmitter  } from '@angular/core';
+import { Subscription, Subject } from 'rxjs';
 
 import { Post } from '../post.model';
 import { PostsService } from '../posts.service';
@@ -16,28 +16,22 @@ export class PostListComponent implements OnInit, OnDestroy {
   //   { title: 'Third Post', content: "This is the third post's content" },
   // ];
   posts: Post[] = [];
-  isLoading = false;
   private postsub: Subscription;
 
   constructor(public postsService: PostsService) {}
 
   ngOnInit() {
-    this.isLoading = true;
     this.postsService.getPosts();
     this.postsub = this.postsService
-      .getPostUpdateListener()
+      .getPostUpdatedListener()
       .subscribe((posts: Post[]) => {
-        this.isLoading = false;
         this.posts = posts;
       });
-    console.log(
-      ' ' +
-        '>>>> this.postsub ' +
-        this.postsub +
-        ' ' +
-        '>>>> posts ' +
-        this.posts
-    );
+  }
+  
+  // Forcing the form to Edit based on a click event 
+  onEdit(post: Post) {
+    this.postsService.editPost(post);
   }
 
   onDelete(postId: string) {

@@ -1,8 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Subject } from 'rxjs';
+import { Subject, Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
-import { Router } from '@angular/router';
 
 import { Post } from './post.model';
 
@@ -10,8 +9,9 @@ import { Post } from './post.model';
 export class PostsService {
   private posts: Post[] = [];
   private postsUpdated = new Subject<Post[]>();
+  private postEdit= new Subject<Post>();
 
-  constructor(private http: HttpClient, private router: Router) {}
+  constructor(private http: HttpClient) {}
 
   getPosts() {
     this.http
@@ -33,14 +33,16 @@ export class PostsService {
       });
   }
 
-  getPostUpdateListener() {
-    return this.postsUpdated.asObservable();
+  editPost(post: Post){
+    this.postEdit.next(post);
   }
 
-  getPost(id: string) {
-    return this.http.get<{ _id: string; title: string; content: string }>(
-      'http://localhost:3000/api/posts/' + id
-    );
+  getEditPostListiner() {
+    return this.postEdit.asObservable();
+  }
+
+  getPostUpdatedListener() {
+    return this.postsUpdated.asObservable();
   }
 
   addPost(title: string, content: string) {
@@ -55,22 +57,23 @@ export class PostsService {
         post.id = id;
         this.posts.push(post);
         this.postsUpdated.next([...this.posts]);
-        this.router.navigate(['/']);
       });
   }
 
-  updatePost(id: string, title: string, content: string) {
-    const post: Post = { id: id, title: title, content: content };
+
+  putPost(title: string, content: string, postId:string) {
+    const post: Post = { id: postId, title: title, content: content };
     this.http
-      .put('http://localhost:3000/api/posts/' + id, post)
-      .subscribe((response) => {
-        const updatedPosts = [...this.posts];
-        const oldPostIndex = updatedPosts.findIndex((p) => p.id === post.id);
-        updatedPosts[oldPostIndex] = post;
-        this.posts = updatedPosts;
+      .put<{ message: string; postId: string }>(
+        'http://localhost:3000/api/posts/' + postId,
+        post
+      )
+      .subscribe((responseData) => {
+        const id = responseData.postId;
+        post.id = id;
+        // This has to be called again due Angular not seeing updates if you manually change the values in the object.
+        this.getPosts();
         this.postsUpdated.next([...this.posts]);
-        this.router.navigate(['/']);
-        console.log();
       });
   }
 
